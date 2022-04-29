@@ -1,0 +1,70 @@
+---
+title: "SBAM Macroprject"
+author: "Group 12"
+date: "25 2 2021"
+output: html_document
+---
+
+The following Chunk is needed if the textnets-package is not installed, devtools-package is required
+```{r}
+# devtools required
+# library(devtools)
+# install_github("cbail/textnets")
+```
+
+The following Chunk loads the library. Note that the rtweet-package is not required anymore. If the code does not work the last line with the registerDoParallel should be deleted, this prolongs the computatuional time
+```{r}
+set.seed(7110155)
+library(tidyverse)
+library(rtweet)
+library(textnets)
+library(stringr)
+library(doParallel)
+registerDoParallel(makeCluster(detectCores(), type = 'PSOCK')) # maybe this crashes the programm, if not the computational time is reduced by 1/3
+
+```
+
+This Chunk gives API-Access to Twitter and saves the Tweets as .csv-file, not needed anymore
+```{r}
+#Tweets <-  search_tweets("Textmining OR Datamining OR Graphmining", n = 2000, include_rts = T, retryonratelimit = T)
+#write_as_csv(Tweets, "Text_Data_Graphmining")
+
+```
+
+Here Tweets- and dictionary-file are loaded and the dictionary is filtered for tokens that occur at least 8 times
+```{r}
+Tweets <- read_csv("Text_Data_Graphmining.csv")
+dictionary <- read_delim("dictionary.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+dictionary_filt <- filter(dictionary, count > 7)
+
+```
+
+Here The text is Preprocessed and grouped by the users, the tweets are declared as text, nodes are the words and the stoppwords are removed with an english dictionary. The Preprocessed dataset is saved as .csv-file. This can be skipped because the Text needed some manually processing afterwards as described in the text.
+```{r}
+#Tweets_prepped <- PrepText(Tweets, groupvar = "user_id", textvar = "text", node_type = "words", 
+#                          tokenizer = "tweets", strip_url = TRUE, pos = "noun", language = "english", remove_stop_words = TRUE,
+#                          remove_numbers = TRUE, compound_nouns = TRUE)
+
+#write.csv(Tweets_prepped, "Tweets_prepped.csv")
+
+```
+
+In this Chunk the manually prepped files are loaded and adjusted with the dictionary
+```{r}
+Tweets_prepped <- read_delim("Tweets_prepped.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+Tweets_prepped <- Tweets_prepped %>% filter(lemma %in% dictionary_filt$lemma)
+
+```
+
+In this Chunk the network with the words as nodes and the users as edges are built, clustered, visualized and measured. The measurements (between- and closeness-centrality) are written as .csv-file
+```{r}
+text_network_word <- CreateTextnet(Tweets_prepped)
+text_communities  <-TextCommunities(text_network_word) 
+
+VisTextNet(text_network_word)
+VisTextNetD3(text_network_word, zoom = TRUE)
+
+centrality <- TextCentrality(text_network_word)
+write.csv(centrality, "centrality.csv")
+
+```
